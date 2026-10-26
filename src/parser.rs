@@ -290,6 +290,48 @@ pub fn parse_markdown(input: &str) -> Vec<Block> {
                 }
             }
 
+            Event::InlineMath(math) => {
+                let target_buf = if in_list_item {
+                    &mut list_item_buf
+                } else {
+                    &mut inline_buf
+                };
+                target_buf.push(InlineElement::Code(format!("${math}$")));
+            }
+
+            Event::DisplayMath(math) => {
+                if let Some(Container::Paragraph) = container_stack.last() {
+                    let content = std::mem::take(&mut inline_buf);
+                    if !content.is_empty() {
+                        blocks.push(Block::Paragraph { content });
+                    }
+                }
+                blocks.push(Block::CodeBlock {
+                    language: None,
+                    content: format!("$${math}$$\n"),
+                });
+            }
+
+            Event::Html(text) | Event::InlineHtml(text) => {
+                let target_buf = if in_list_item {
+                    &mut list_item_buf
+                } else {
+                    &mut inline_buf
+                };
+                target_buf.push(InlineElement::Text(text.to_string()));
+            }
+
+            Event::FootnoteReference(text) => {
+                let target_buf = if in_list_item {
+                    &mut list_item_buf
+                } else {
+                    &mut inline_buf
+                };
+                target_buf.push(InlineElement::Text(format!("[^{text}]")));
+            }
+
+            // Ignored structural/metadata events that do not produce renderable text or blocks:
+            // e.g. TaskListMarker, Table head/row/cell markup, FootnoteDefinition start/end.
             _ => {}
         }
     }
@@ -458,6 +500,66 @@ mod tests {
             assert_eq!(url, "photo.jpg");
         } else {
             panic!("Expected Image block");
+        }
+    }
+
+    #[test]
+    fn test_parse_inline_math() {
+        let blocks = parse_markdown("A formula $a^2 + b^2 = c^2$ in text.");
+        assert_eq!(blocks.len(), 1);
+        if let Block::Paragraph { content } = &blocks[0] {
+            assert_eq!(
+                content,
+                &vec![
+                    InlineElement::Text("A formula ".to_string()),
+                    InlineElement::Code("$a^2 + b^2 = c^2$".to_string()),
+                    InlineElement::Text(" in text.".to_string()),
+                ]
+            );
+        } else {
+            panic!("Expected paragraph");
+        }
+    }
+
+    #[test]
+    fn test_parse_display_math() {
+        let blocks = parse_markdown("$$\\frac{1}{2}$$");
+        assert_eq!(blocks.len(), 1);
+        assert_eq!(
+            blocks[0],
+            Block::CodeBlock {
+                language: None,
+                content: "$$\\frac{1}{2}$$\n".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_math_in_list_and_heading() {
+        let blocks = parse_markdown("# Heading with $x$\n- Item with $y$");
+        assert_eq!(blocks.len(), 2);
+        if let Block::Header { level, content } = &blocks[0] {
+            assert_eq!(*level, 1);
+            assert!(content.contains(&InlineElement::Code("$x$".to_string())));
+        } else {
+            panic!("Expected header");
+        }
+        if let Block::List { items, .. } = &blocks[1] {
+            assert_eq!(items.len(), 1);
+            assert!(items[0].contains(&InlineElement::Code("$y$".to_string())));
+        } else {
+            panic!("Expected list");
+        }
+    }
+
+    #[test]
+    fn test_parse_currency_dollar_signs() {
+        let blocks = parse_markdown("Costs $5 and $10.");
+        assert_eq!(blocks.len(), 1);
+        if let Block::Paragraph { content } = &blocks[0] {
+            assert!(!content.is_empty());
+        } else {
+            panic!("Expected paragraph");
         }
     }
 }

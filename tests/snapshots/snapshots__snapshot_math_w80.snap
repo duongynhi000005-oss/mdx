@@ -1,0 +1,18 @@
+---
+source: tests/snapshots.rs
+expression: output
+---
+[1;38;2;210;140;40m# Math Demonstration[0m
+
+[38;2;190;180;160mInline formula [0m[2;38;2;160;120;60m$a^2 + b^2 = c^2$[0m[38;2;190;180;160m in a paragraph.[0m
+
+[38;2;190;180;160m  $$[0m
+[38;2;190;180;160m  \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}[0m
+[38;2;190;180;160m  $$[0m
+
+[38;2;190;180;160mItems with math:[0m
+
+  * [38;2;190;180;160mFirst item: [0m[2;38;2;160;120;60m$e^{i\pi} + 1 = 0$[0m
+  * [38;2;190;180;160mSecond item: [0m[2;38;2;160;120;60m$f(x) = \int_0^x t dt$[0m
+
+[38;2;190;180;160mCurrency prices like [0m[38;2;190;180;160m$[0m[38;2;190;180;160m5 and [0m[38;2;190;180;160m$[0m[38;2;190;180;160m10 are preserved.[0m
